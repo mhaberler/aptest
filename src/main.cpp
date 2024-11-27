@@ -15,6 +15,7 @@
 #include <WiFi.h>
 #include <NetworkClient.h>
 #include <WiFiAP.h>
+#include <ESPmDNS.h>
 
 #ifndef LED_BUILTIN
     #define LED_BUILTIN 2  // Set the GPIO pin where you connected your test LED or comment this line out if your dev board has a built-in LED
@@ -51,6 +52,11 @@ void setup() {
     Serial.println(myIP);
     server.begin();
 
+    if (MDNS.begin(ssid)) {
+        Serial.println("MDNS responder started");
+    }
+    MDNS.addService("http", "tcp", 80);
+    MDNS.addService("mqtt", "tcp", 1883);
     Serial.println("Server started");
 }
 
