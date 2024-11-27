@@ -17,59 +17,68 @@
 #include <WiFiAP.h>
 #include <ESPmDNS.h>
 
+#include <PicoMQTT.h>
+
+#if __has_include("config.h")
+    #include "config.h"
+#endif
+#define CHANNEL 1
+#define MAX_CLIENTS 4
 #ifndef LED_BUILTIN
     #define LED_BUILTIN 2  // Set the GPIO pin where you connected your test LED or comment this line out if your dev board has a built-in LED
 #endif
 
 // Set these to your desired credentials.
 const char *ssid = "yourAP";
-const char *password = "yourPassword";
+const char *password = NULL; // no password 
 
 NetworkServer server(80);
+PicoMQTT::Server mqtt;
 
 void setup() {
     delay(3000);
     //   pinMode(LED_BUILTIN, OUTPUT);
 
     Serial.begin(115200);
-    Serial.println();
-    Serial.println("Configuring access point...");
-
-    // You can remove the password parameter if you want the AP to be open.
-    // a valid password must have more than 7 characters
+    log_i("Configuring access point...");
 
     IPAddress localIP =  IPAddress("192.168.5.1");
     IPAddress gatewayIP =  IPAddress("0.0.0.0");
     IPAddress subnetMask =  IPAddress("255.255.255.0");
     WiFi.softAPConfig( localIP,  gatewayIP,  subnetMask); // , dhcp_lease_start, dns);
 
-    if (!WiFi.softAP(ssid, password)) {
+    if (!WiFi.softAP(ssid, password, CHANNEL, MAX_CLIENTS)) { // no password
         log_e("Soft AP creation failed.");
         while (1);
     }
     IPAddress myIP = WiFi.softAPIP();
-    Serial.print("AP IP address: ");
-    Serial.println(myIP);
+    log_i("AP IP address: %s", myIP.toString().c_str());
+
     server.begin();
 
     if (MDNS.begin(ssid)) {
-        Serial.println("MDNS responder started");
+        log_i("MDNS responder started");
     }
     MDNS.addService("http", "tcp", 80);
     MDNS.addService("mqtt", "tcp", 1883);
-    Serial.println("Server started");
+    log_i("weberver started");
+    mqtt.begin();
+    log_i("mqtt erver started");
+
 }
 
 void loop() {
+    mqtt.loop();
+
     NetworkClient client = server.accept();  // listen for incoming clients
 
     if (client) {                     // if you get a client,
-        Serial.println("New Client.");  // print a message out the serial port
+        log_i("New Client.");  // print a message out the serial port
         String currentLine = "";        // make a String to hold incoming data from the client
         while (client.connected()) {    // loop while the client's connected
             if (client.available()) {     // if there's bytes to read from the client,
                 char c = client.read();     // read a byte, then
-                Serial.write(c);            // print it out the serial monitor
+                // log_i("%c", c);            // print it out the serial monitor
                 if (c == '\n') {            // if the byte is a newline character
 
                     // if the current line is blank, you got two newline characters in a row.
@@ -107,6 +116,6 @@ void loop() {
         }
         // close the connection:
         client.stop();
-        Serial.println("Client Disconnected.");
+        log_i("Client Disconnected.");
     }
 }
